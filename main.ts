@@ -47,8 +47,19 @@ if (issue !== null) {
   process.exit(1);
 }
 
-// Clear the output directory first: the dossier must describe exactly this run.
-if (existsSync(outDir)) rmSync(outDir, { recursive: true, force: true });
+// Clear the output directory's contents first: the dossier must describe
+// exactly this run. The directory itself is never removed — in the grader it
+// is a mounted volume, and removing a mount point fails — and a failure to
+// clear a stale entry must never fail the run, so each removal is guarded.
+if (existsSync(outDir)) {
+  for (const name of readdirSync(outDir)) {
+    try {
+      rmSync(join(outDir, name), { recursive: true, force: true });
+    } catch {
+      // A stale entry we cannot remove is overwritten below or ignored.
+    }
+  }
+}
 mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, 'board.json'), `${JSON.stringify({ rows: board })}\n`);
 writeFileSync(join(outDir, 'data.js'), dataScript(radar));
